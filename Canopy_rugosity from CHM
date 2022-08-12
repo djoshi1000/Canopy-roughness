@@ -1,0 +1,41 @@
+from osgeo import gdal
+import sys
+import numpy as np
+import rasterio
+from matplotlib import pyplot
+import cv2
+import numpy as np
+from skimage.morphology import rectangle
+import skimage.filters as filters
+from numpy import inf
+
+#img = rasterio.open(r"D:\Project_data\Drive\Hmax\Hmax\000645_nw.img")
+from rasterio.plot import show
+# Save image in set directory
+# Read RGB image
+img = gdal.Open(r"D:\Project_data\Drive\Hmax\Hmax\030660_se.img")
+arr = (img.ReadAsArray())
+#arr= np.array([[2, 2,3, 4, 0,1],[4, 5, 9, 7, 0, 1],[1, 5, 1, 4, 0,1],[1, 2, 1, 4, 0, 1],[1, 2, 1, 4, 0, 1],[0, 0, 0, 0, 0, 0]])
+k= arr.shape
+#print(arr)
+moving_averages = []
+for i in range(0,len(arr)):
+    for j in range(0,len(arr[0])):
+        window= arr[i:i+10, j:j+10]
+        mat= window.ravel(order='F')
+        summ= (np.std(mat))
+        moving_averages.append(summ)
+
+# # np_matrix= np.arange(moving_averages.reshape(782,782))
+np_matrix= np.array(moving_averages)
+l=(np_matrix.reshape(k).astype(np.float32))
+l[l == inf] = 0
+print(l)
+kwargs = ds.meta
+kwargs.update(
+#     dtype=rasterio.uint8,
+    count=1,
+    compress='lzw')
+with rasterio.open(os.path.join(outpath, '030660_see_10.tif'), 'w', **kwargs) as dst:
+    dst.write_band(1,l)
+
