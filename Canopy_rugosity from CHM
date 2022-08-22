@@ -6,7 +6,7 @@
 
 #Import Libraries
 from osgeo import gdal
-import sys,os
+import sys,os,glob
 import numpy as np
 import rasterio
 from matplotlib import pyplot
@@ -19,60 +19,63 @@ import pandas as pd
 from rasterio.plot import show
 
 #Load the images
-#Use rasterio library to read the cordinate system
-ds = rasterio.open(r"D:\Project_data\Drive\Hmax\Split\025705_nw9.IMG")
-#Use rgdal library to convert the raster into array easily
-img = gdal.Open(r"D:\Project_data\Drive\Hmax\Split\025705_nw9.IMG")
-
+inpath= r"E:\Hmax\Hmax"
 #Output file path
-outpath=r"D:\Project_data\Drive\Hmax"
-arr = (img.ReadAsArray())
-# arr= np.array([[2, 2,3, 4,-inf,1],[4, 5, 9, 7, 0, 1],[1, 5, 1, 4, 0,1],
-#                [1, 2, 1, 4, 0, 1],[1, 2, 1, 4, 0, 1],[0, 0, 0, 5, 0, 0]])
+outpath1=r"E:\Deep_Gaps"
+outpath2= r"E:\Canopy_Roughness"
+#Use rasterio library to read the cordinate system
+images=glob.glob(os.path.join(inpath,'*.img'))
+for img in images:
+    outname=(os.path.splitext(os.path.basename(img))[0])+".tif"
+    ds = rasterio.open(img)
+    img = gdal.Open(img)
+    arr = (img.ReadAsArray())
+    # arr= np.array([[2, 2,3, 4,-inf,1],[4, 5, 9, 7, 0, 1],[1, 5, 1, 4, 0,1],
+    #                [1, 2, 1, 4, 0, 1],[1, 2, 1, 4, 0, 1],[0, 0, 0, 5, 0, 0]])
 
-k= arr.shape
-#take the moving window size
-c=10
-Deep_gaps = []
-moving_averages = []
-for i in range(0,len(arr)):
-    for j in range(0,len(arr[0])):
-        window= arr[i:i+c, j:j+c]
-        mat= (window.ravel(order='F'))
-        ct= len(mat)
-        if (ct == (c*c)):
-            mat[mat == -inf] = 0
-            mat=np.ndarray.tolist(mat)
-        elif (ct != (c*c)):
-            mat[mat == -inf] = 0
-            mat=np.ndarray.tolist(np.pad(mat, (0,(c*c)-ct), 'mean'))
-            
-#for the canopy roughness we take the standard deviation of the height 
-# values within our window size i.e. 'c' window size
-        summ= (np.std(mat))
-        moving_averages.append(summ)
-#for the canopy Deep gaps we count the zeros in the chm and then divide it by the window size 
-        mat2= np.ndarray.tolist(window.ravel(order='F'))
-        if np.sum(np.isnan(mat2)):
-            mat2=np.ndarray.tolist(np.where(np.isnan(mat2), 0, mat2))
-            gaps= mat2.count(0)/100
-        else:
-            gaps= mat2.count(0)/100
-            Deep_gaps.append(gaps)
-np_matrix= np.array(moving_averages)
-Gaps= np.array(Deep_gaps)
-n=(Gaps.reshape(k).astype(np.float32))
-l=(np_matrix.reshape(k).astype(np.float32))
-l[l == inf] = 0
-#Put the cordinate system in the new arrays to write them into raster
-kwargs = ds.meta
-kwargs.update(
-#     dtype=rasterio.uint8,
-    count=1,
-    compress='lzw')
+    k= arr.shape
+    #take the moving window size
+    c=10
+    Deep_gaps = []
+    moving_averages = []
+    for i in range(0,len(arr)):
+        for j in range(0,len(arr[0])):
+            window= arr[i:i+c, j:j+c]
+            mat= (window.ravel(order='F'))
+            ct= len(mat)
+            if (ct == (c*c)):
+                mat[mat == -inf] = 0
+                mat=np.ndarray.tolist(mat)
+            elif (ct != (c*c)):
+                mat[mat == -inf] = 0
+                mat=np.ndarray.tolist(np.pad(mat, (0,(c*c)-ct), 'mean'))
 
-#write the rasters
-with rasterio.open(os.path.join(outpath, '025705_nw9.tif'), 'w', **kwargs) as dst:
-    dst.write_band(1,l)
-with rasterio.open(os.path.join(outpath, '025705_nw9_Gaps.tif'), 'w', **kwargs) as dst:
-    dst.write_band(1,n)
+    #for the canopy roughness we take the standard deviation of the height 
+    # values within our window size i.e. 'c' window size
+            summ= (np.std(mat))
+            moving_averages.append(summ)
+    #for the canopy Deep gaps we count the zeros in the chm and then divide it by the window size 
+            mat2= np.ndarray.tolist(window.ravel(order='F'))
+            if np.sum(np.isnan(mat2)):
+                mat2=np.ndarray.tolist(np.where(np.isnan(mat2), 0, mat2))
+                gaps= mat2.count(0)/100
+            else:
+                gaps= mat2.count(0)/100
+                Deep_gaps.append(gaps)
+    np_matrix= np.array(moving_averages)
+    Gaps= np.array(Deep_gaps)
+    n=(Gaps.reshape(k).astype(np.float32))
+    l=(np_matrix.reshape(k).astype(np.float32))
+    l[l == inf] = 0
+    #Put the cordinate system in the new arrays to write them into raster
+    kwargs = ds.meta
+    kwargs.update(
+    #     dtype=rasterio.uint8,
+        count=1,
+        compress='lzw')
+    print(outname)
+    #write the rasters
+    with rasterio.open(os.path.join(outpath2, outname), 'w', **kwargs) as dst:
+        dst.write_band(1,l)
+    with rasterio.open(os.path.join(outpath1,outname), 'w', **kwargs) as dst:
+        dst.write_band(1,n)
